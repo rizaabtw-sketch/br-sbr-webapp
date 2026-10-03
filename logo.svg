@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#3a0a0a"/>
+      <stop offset="55%" stop-color="#1a0404"/>
+      <stop offset="100%" stop-color="#040101"/>
+    </radialGradient>
+    <linearGradient id="fur" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2b1717"/>
+      <stop offset="100%" stop-color="#120707"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e51b1b"/>
+      <stop offset="100%" stop-color="#8a0606"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="256" cy="256" r="248" fill="url(#bg)" stroke="#e51b1b" stroke-width="6" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="234" fill="none" stroke="#4a0202" stroke-width="2"/>
+
+  <!-- Уши -->
+  <circle cx="152" cy="152" r="60" fill="url(#fur)" stroke="#3d1010" stroke-width="5"/>
+  <circle cx="152" cy="152" r="32" fill="#5b1212"/>
+  <circle cx="360" cy="152" r="60" fill="url(#fur)" stroke="#3d1010" stroke-width="5"/>
+  <circle cx="360" cy="152" r="32" fill="#5b1212"/>
+
+  <!-- Голова -->
+  <ellipse cx="256" cy="280" rx="146" ry="140" fill="url(#fur)" stroke="#3d1010" stroke-width="5"/>
+
+  <!-- Морда -->
+  <ellipse cx="256" cy="326" rx="86" ry="70" fill="#241010"/>
+  <ellipse cx="256" cy="300" rx="30" ry="22" fill="#0d0404"/>
+  <path d="M256 322 v26" stroke="#0d0404" stroke-width="8" stroke-linecap="round"/>
+  <path d="M256 348 q-30 22 -56 2" stroke="#0d0404" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M256 348 q30 22 56 2" stroke="#0d0404" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+  <!-- Глаза -->
+  <ellipse cx="198" cy="248" rx="22" ry="24" fill="#ffffff"/>
+  <ellipse cx="314" cy="248" rx="22" ry="24" fill="#ffffff"/>
+  <circle cx="201" cy="250" r="12" fill="#e51b1b"/>
+  <circle cx="317" cy="250" r="12" fill="#e51b1b"/>
+  <circle cx="197" cy="245" r="4.5" fill="#ffffff" opacity="0.9"/>
+  <circle cx="313" cy="245" r="4.5" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Брови (злой прищур) -->
+  <path d="M168 210 L232 226" stroke="#e51b1b" stroke-width="11" stroke-linecap="round"/>
+  <path d="M344 210 L280 226" stroke="#e51b1b" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- Клыки -->
+  <path d="M226 362 l14 30 l14 -30 z" fill="#ffffff"/>
+  <path d="M258 362 l14 30 l14 -30 z" fill="#ffffff"/>
+
+  <!-- Нашивка BLACK RUSSIA -->
+  <text x="256" y="464" text-anchor="middle" font-family="Arial Black, Arial, sans-serif"
+        font-size="46" font-weight="900" letter-spacing="3" fill="url(#red)" stroke="#e51b1b" stroke-width="1">BR</text>
+</svg>
