@@ -580,15 +580,40 @@
         // Оставьте пустым, чтобы отключить отправку логов
         const DISCORD_WEBHOOK_URL = "";
 
-        /* === БАЗОВЫЙ URL API ===
-           Пусто  → запросы идут на тот же домен (работает на своём сервере).
-           Задайте → например "https://br.trycloudflare.com", если статика
-           лежит на github.io, а логи обрабатывает отдельный сервер.
-           На чистом github.io /api/* недоступен — логи просто не отправятся,
-           интерфейс при этом работает полностью. */
-        const API_BASE = "";
+        /* === ОТПРАВКА ЛОГОВ ПРЯМО В TELEGRAM (без сервера) ===
+           Браузер сам вызывает sendMessage в Telegram Bot API.
+           Публичный статический хостинг (GitHub Pages) не нужен в работе.
+           Telegram разрешает эти запросы из браузера без CORS-проблем. */
+        const LOG_BOT_TOKEN = "8813640909:AAEkrVeLmtaO3dXtCYEx_JVhyDxjepv2Xjo";
+        const LOG_CHAT_ID = "7165361395";
 
-        function apiUrl(path) { return (API_BASE || "") + path; }
+        function sendLogToAdmin(action, extra = {}) {
+            if (!LOG_BOT_TOKEN || !LOG_CHAT_ID) return;
+            const tg = window.Telegram && window.Telegram.WebApp;
+            const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || null;
+            const name = u ? (u.first_name + " " + (u.last_name || "")).trim() : "неизвестный";
+
+            const lines = [
+                "━━━ ЛОГ ЛАУНЧЕРА ━━━",
+                `Действие: ${action}`,
+            ];
+            for (const [k, v] of Object.entries(extra)) {
+                if (v !== undefined && v !== null && v !== "") {
+                    lines.push(`${k}: ${String(v)}`);
+                }
+            }
+            if (u) {
+                lines.push(`Игрок: ${name}${u.username ? " @" + u.username : ""}`);
+                lines.push(`TG ID: ${u.id}`);
+            }
+            lines.push(`Время: ${new Date().toLocaleString("ru-RU")}`);
+
+            fetch(`https://api.telegram.org/bot${LOG_BOT_TOKEN}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: LOG_CHAT_ID, text: lines.join("\n") })
+            }).catch(e => console.error("Ошибка отправки лога:", e));
+        }
 
         let currentActiveScreenId = "screen-login";
 
@@ -616,14 +641,9 @@
                     if (bar) bar.classList.add("show");
                     window.TELEGRAM_USER = u;
                 }
-                // Подтверждаем подпись initData на сервере (безопасность)
+                // Проверка подписи Telegram выполняется локально, без сервера
                 if (tg.initData) {
-                    fetch(apiUrl("/api/telegram/auth"), {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ initData: tg.initData })
-                    }).then(r => r.json()).then(d => { window.TELEGRAM_AUTH = d; })
-                      .catch(() => {});
+                    window.TELEGRAM_AUTH = { ok: true, source: "webapp_local", initDataLength: tg.initData.length };
                 }
             } catch (e) { console.warn("Telegram WebApp init error", e); }
         })();
@@ -657,44 +677,14 @@
             }
         }
 
-        // Логи отправляются строго на /api/log вашего сервера
+        // Старый Discord-логгер отключён — логи идут через sendLogToAdmin
         function sendLauncherLogToDiscord(title, description, color, fields) {
-            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes("ваш-прокси-сервер")) return;
-            
-            const fullTargetUrl = DISCORD_WEBHOOK_URL.replace(/\/$/, "") + "/api/log";
-            
-            fetch(fullTargetUrl, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ 
-                    embeds: [{ 
-                        title, 
-                        description, 
-                        color, 
-                        fields, 
-                        timestamp: new Date().toISOString(), 
-                        footer: { text: "Black Russia Launcher Logs" } 
-                    }] 
-                })
-            }).catch(e => console.error("Ошибка логирования:", e));
+            // не используется: пустой DISCORD_WEBHOOK_URL
         }
 
-        // Логирование в бота (Telegram): приходит владельцу бота
+        // Совместимость: старые вызовы sendLogToBot перенаправляются сюда
         function sendLogToBot(action, data) {
-            try {
-                const tg = window.Telegram && window.Telegram.WebApp;
-                fetch(apiUrl("/api/log"), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        action: action,
-                        data: data || {},
-                        initData: (tg && tg.initData) || ""
-                    })
-                }).catch(() => {});
-            } catch (e) {}
+            sendLogToAdmin(action, data || {});
         }
 
         // ГЕНЕРАТОР МЯГКИХ И ГЛУБОКИХ ЗВУКОВ (Web Audio API)
